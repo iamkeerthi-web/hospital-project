@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SHER-SHA QR Scanner - Auto Translate</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; padding: 20px;
+        }
+   .container {
+            max-width: 900px; margin: 0 auto; background: white;
+            border-radius: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.1); overflow: hidden;
+        }
+   .header {
+            background: linear-gradient(135deg, #FF6B35, #F7931E);
+            color: white; padding: 30px; text-align: center;
+        }
+   .header h1 { font-size: 2.2em; margin-bottom: 10px; }
+   .main { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; padding: 30px; }
+   .form-section,.qr-section {
+            background: #f8f9fa; padding: 25px; border-radius: 15px;
+        }
+   .form-section h2,.qr-section h2 { color: #FF6B35; margin-bottom: 20px; }
+   .input-group { margin-bottom: 20px; }
+   .input-group label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; }
+   .input-group input,.input-group select,.input-group textarea {
+            width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 10px;
+            font-size: 16px;
+        }
+   .mic-btn {
+            background: #28a745; color: white; border: none; padding: 10px 15px;
+            border-radius: 8px; cursor: pointer; margin-left: 10px; font-size: 14px;
+        }
+   .mic-btn.listening { background: #dc3545; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+   .input-with-mic { display: flex; align-items: center; }
+   .input-with-mic input,.input-with-mic textarea { flex: 1; }
+   .btn {
+            background: linear-gradient(135deg, #FF6B35, #F7931E); color: white;
+            border: none; padding: 15px 30px; border-radius: 10px; font-size: 16px;
+            font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px;
+        }
+   .btn:disabled { background: #ccc; cursor: not-allowed; }
+   .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,107,53,0.4); }
+        #qrcode { text-align: center; margin: 20px 0; min-height: 260px; }
+        #qrcode canvas { border: 3px solid #FF6B35; border-radius: 10px; }
+   .emergency {
+            background: #dc3545; color: white; padding: 15px; border-radius: 10px;
+            text-align: center; font-weight: bold; margin: 15px 0; display: none;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+   .patient-data {
+            background: #e9ecef; padding: 15px; border-radius: 10px;
+            margin-top: 20px; display: none;
+        }
+   .loader { display: none; text-align: center; color: #FF6B35; font-weight: bold; }
+        @media (max-width: 768px) {.main { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🦁 SHER-SHA QR SCANNER</h1>
+            <p>Auto-Translate | Rural Healthcare Voice-to-QR | Hackathon 2026</p>
+        </div>
+
+        <div class="main">
+            <div class="form-section">
+                <h2>👨‍⚕️ Patient Details</h2>
+                <div class="input-group">
+                    <label>Patient Name:</label>
+                    <div class="input-with-mic">
+                        <input type="text" id="patientName" placeholder="नाम बोलें या लिखें">
+                        <button class="mic-btn" onclick="startListening('patientName')">🎤</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Age:</label>
+                    <input type="number" id="age" placeholder="उम्र">
+                </div>
+                <div class="input-group">
+                    <label>Language:</label>
+                    <select id="language">
+                        <option value="hi">Hindi - हिंदी</option>
+                        <option value="en">English</option>
+                        <option value="kn">Kannada - ಕನ್ನಡ</option>
+                        <option value="ta">Tamil - தமிழ்</option>
+                        <option value="te">Telugu - తెలుగు</option>
+                        <option value="bh">Bhojpuri - भोजपुरी</option>
+                        <option value="mai">Maithili - मैथिली</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Main Symptom:</label>
+                    <div class="input-with-mic">
+                        <textarea id="symptom" rows="3" placeholder="तकलीफ बताएं..."></textarea>
+                        <button class="mic-btn" onclick="startListening('symptom')">🎤</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Contact Number:</label>
+                    <input type="tel" id="contact" placeholder="मोबाइल नंबर">
+                </div>
+                <button class="btn" id="generateBtn" onclick="generateQR()">🚀 SMART QR GENERATE KARO</button>
+                <div class="loader" id="loader">⏳ Translating to English...</div>
+            </div>
+
+            <div class="qr-section">
+                <h2>📱 Generated QR Code</h2>
+                <div class="emergency" id="emergencyAlert">
+                    🚨 EMERGENCY CASE DETECTED 🚨
+                </div>
+                <div id="qrcode"></div>
+                <div id="patientDataDisplay" class="patient-data"></div>
+                <button class="btn" onclick="decodeQR()" style="display:none;" id="decodeBtn">🔍 Decode Patient Data</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let recognition;
+        let currentQRData = '';
+        let translatedSymptomGlobal = '';
+
+        const emergencyKeywords = [
+            // Hindi
+            'saans', 'saanse', 'chest pain', 'seene', 'heart attack', 'stroke',
+            'behoshi', 'unconscious', 'bleeding', 'khoon', 'accident', 'gir gaya',
+            'heart', 'dil', 'attack', 'dard', 'emergency', 'serious', 'critical',
+            'pressure', 'squeezing', 'dhadkan', 'chakkar',
+            // English
+            'breath', 'breathing', 'difficulty', 'pain', 'unconscious',
+            // Kannada
+            'ushu', 'usiru', 'ede nōvu', 'hr̥daya', 'gāḍi', 'raktasrāva', 'pramāda', 'tyvraga',
+            // Tamil
+            'mūccu', 'mūccut tiṇaṟal', 'neñcu vali', 'irutaya', 'noṭi', 'vativu', 'avacara',
+            // Telugu
+            'ūpiri', 'ūpiri āḍaṁ', 'chāti nōppī', 'hr̥dayaṁ', 'ḍhakka', 'raktasrāvaṁ', 'atyaavasaraṁ'
+        ];
+
+        const langCodeMap = {
+            'hi': 'hi-IN',
+            'en': 'en-IN',
+            'kn': 'kn-IN',
+            'ta': 'ta-IN',
+            'te': 'te-IN',
+            'bh': 'hi-IN',
+            'mai': 'hi-IN'
+        };
+
+        function initSpeechRecognition() {
+            if ('webkitSpeechRecognition' in window) {
+                recognition = new webkitSpeechRecognition();
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                return true;
+            } else {
+                alert('Bhai Chrome use kar. Mic sirf Chrome mein chalega.');
+                return false;
+            }
+        }
+
+        function startListening(fieldId) {
+            if (!initSpeechRecognition()) return;
+
+            const field = document.getElementById(fieldId);
+            const btn = event.target;
+            const lang = document.getElementById('language').value;
+
+            recognition.lang = langCodeMap[lang] || 'hi-IN';
+            btn.classList.add('listening');
+            btn.textContent = '🔴';
+
+            recognition.start();
+
+            recognition.onresult = function(event) {
+                const transcript = event.results[0][0].transcript;
+                field.value = transcript;
+                btn.classList.remove('listening');
+                btn.textContent = '🎤';
+            };
+
+            recognition.onerror = function(event) {
+                btn.classList.remove('listening');
+                btn.textContent = '🎤';
+                if (event.error === 'language-not-supported') {
+                    alert('Is language mein mic support nahi hai. Type kar de.');
+                }
+            };
+        }
+
+        function checkEmergency(text) {
+            const lowerText = text.toLowerCase();
+            return emergencyKeywords.some(keyword => lowerText.includes(keyword));
+        }
+
+        // FREE TRANSLATE API - MyMemory
+        async function translateToEnglish(text, sourceLang) {
+            if (sourceLang === 'en' ||!text) return text;
+
+            try {
+                const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${sourceLang}|en`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.responseStatus === 200) {
+                    return data.responseData.translatedText;
+                } else {
+                    return text; // Fallback to original if translate fails
+                }
+            } catch (error) {
+                console.log('Translation failed, using original:', error);
+                return text; // Agar net nahi hai toh original bhej de
+            }
+        }
+
+        async function generateQR() {
+            const name = document.getElementById('patientName').value;
+            const age = document.getElementById('age').value;
+            const lang = document.getElementById('language').value;
+            const symptom = document.getElementById('symptom').value;
+            const contact = document.getElementById('contact').value;
+            const generateBtn = document.getElementById('generateBtn');
+            const loader = document.getElementById('loader');
+
+            if (!name ||!age ||!symptom) {
+                alert('Bhai Name, Age, Symptom toh bhar de pehle!');
+                return;
+            }
+
+            // Loading shuru
+            generateBtn.disabled = true;
+            loader.style.display = 'block';
+
+            // TRANSLATE KARO
+            const translatedSymptom = await translateToEnglish(symptom, lang);
+            translatedSymptomGlobal = translatedSymptom;
+
+            const isEmergency = checkEmergency(symptom + ' ' + translatedSymptom + ' ' + name);
+            document.getElementById('emergencyAlert').style.display = isEmergency? 'block' : 'none';
+
+            const patientData = {
+                name: name,
+                age: age,
+                language: lang,
+                symptom_original: symptom,
+                symptom_english: translatedSymptom, // ENGLISH MEIN SAVE HOGA
+                contact: contact,
+                emergency: isEmergency,
+                timestamp: new Date().toLocaleString('en-IN'),
+                id: 'SHER' + Date.now()
+            };
+
+            currentQRData = JSON.stringify(patientData);
+
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '<canvas id="qr-canvas"></canvas>';
+
+            try {
+                const qr = new QRious({
+                    element: document.getElementById('qr-canvas'),
+                    value: currentQRData,
+                    size: 256,
+                    foreground: '#FF6B35',
+                    background: '#FFFFFF',
+                    level: 'H'
+                });
+                document.getElementById('decodeBtn').style.display = 'block';
+            } catch (error) {
+                console.error(error);
+                qrContainer.innerHTML = '<p style="color:red">QR Error</p>';
+            }
+
+            // Loading khatam
+            generateBtn.disabled = false;
+            loader.style.display = 'none';
+        }
+
+        function decodeQR() {
+            if (!currentQRData) return;
+
+            const data = JSON.parse(currentQRData);
+            const displayDiv = document.getElementById('patientDataDisplay');
+
+            const langNames = {
+                'hi': 'Hindi - हिंदी',
+                'en': 'English',
+                'kn': 'Kannada - ಕನ್ನಡ',
+                'ta': 'Tamil - தமிழ்',
+                'te': 'Telugu - తెలుగు',
+                'bh': 'Bhojpuri - भोजपुरी',
+                'mai': 'Maithili - मैथिली'
+            };
+
+            displayDiv.innerHTML = `
+                <h3>📋 Patient Record - For Doctor (ENGLISH)</h3>
+                <p><strong>ID:</strong> ${data.id}</p>
+                <p><strong>Name:</strong> ${data.name}</p>
+                <p><strong>Age:</strong> ${data.age} years</p>
+                <p><strong>Language Spoken:</strong> ${langNames[data.language] || data.language}</p>
+                <p><strong>Symptom (Original):</strong> ${data.symptom_original}</p>
+                <p><strong>Symptom (English):</strong> ${data.symptom_english}</p>
+                <p><strong>Contact:</strong> ${data.contact}</p>
+                <p><strong>Emergency:</strong> ${data.emergency? '🔴 YES - URGENT' : '🟢 No'}</p>
+                <p><strong>Time:</strong> ${data.timestamp}</p>
+            `;
+            displayDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
